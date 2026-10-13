@@ -18,19 +18,23 @@ SECRET_KEY = os.getenv(
 
 DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
 
-allowed_hosts_raw = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0,*")
+allowed_hosts_raw = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0,agrodoktorai.sampc.uz,*")
 ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_raw.split(",") if h.strip()]
+if "agrodoktorai.sampc.uz" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append("agrodoktorai.sampc.uz")
 
 csrf_trusted_raw = os.getenv("CSRF_TRUSTED_ORIGINS", "")
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://agrodoktorai.sampc.uz",
+    "http://agrodoktorai.sampc.uz",
+]
 if csrf_trusted_raw:
-    CSRF_TRUSTED_ORIGINS = [
-        o.strip() for o in csrf_trusted_raw.split(",") if o.strip()
-    ]
-else:
-    CSRF_TRUSTED_ORIGINS = [
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ]
+    for o in csrf_trusted_raw.split(","):
+        o_clean = o.strip()
+        if o_clean and o_clean not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(o_clean)
 
 # Application definition
 INSTALLED_APPS = [
