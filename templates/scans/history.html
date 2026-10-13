@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Tekshiruv tarixi | AgroDoktor{% endblock %}
+{% block meta_description %}Fermerning o'simlik tekshiruvlari tarixi va natijalari arxivi.{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
+
+  <!-- Header & CTA -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4" data-reveal>
+    <div class="space-y-1">
+      <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Tekshiruv tarixi</h1>
+      <p class="text-base text-slate-500">Dala va issiqxonalaringizdagi barcha o'simlik tahlillari arxivi</p>
+    </div>
+    <a href="{% url 'new_scan' %}"
+       class="inline-flex items-center justify-center gap-2 px-6 min-h-[50px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base transition-transform active:scale-95 shadow-sm">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+      <span>Yangi tekshiruv</span>
+    </a>
+  </div>
+
+  <!-- Filter Chips (Horizontally scrollable with snap-x) -->
+  <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none snap-x" data-reveal data-delay="50">
+    <a href="?filter=all"
+       class="snap-start flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all border
+         {% if current_filter == 'all' %}bg-slate-900 text-white border-slate-900 shadow-sm{% else %}bg-white text-slate-700 border-slate-200 hover:bg-slate-50{% endif %}">
+      <span>Hammasi</span>
+      <span class="px-2 py-0.5 rounded-full text-sm font-bold {% if current_filter == 'all' %}bg-slate-800 text-slate-200{% else %}bg-slate-100 text-slate-600{% endif %}">
+        {{ counts.all }}
+      </span>
+    </a>
+
+    <a href="?filter=healthy"
+       class="snap-start flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all border
+         {% if current_filter == 'healthy' %}bg-emerald-600 text-white border-emerald-600 shadow-sm{% else %}bg-white text-slate-700 border-slate-200 hover:bg-slate-50{% endif %}">
+      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+      <span>Sog'lom</span>
+      <span class="px-2 py-0.5 rounded-full text-sm font-bold {% if current_filter == 'healthy' %}bg-emerald-700 text-white{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+        {{ counts.healthy }}
+      </span>
+    </a>
+
+    <a href="?filter=suspicious"
+       class="snap-start flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all border
+         {% if current_filter == 'suspicious' %}bg-amber-500 text-white border-amber-500 shadow-sm{% else %}bg-white text-slate-700 border-slate-200 hover:bg-slate-50{% endif %}">
+      <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+      <span>Kuzatuv talab</span>
+      <span class="px-2 py-0.5 rounded-full text-sm font-bold {% if current_filter == 'suspicious' %}bg-amber-600 text-white{% else %}bg-amber-50 text-amber-700{% endif %}">
+        {{ counts.suspicious }}
+      </span>
+    </a>
+
+    <a href="?filter=diseased"
+       class="snap-start flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all border
+         {% if current_filter == 'diseased' %}bg-rose-600 text-white border-rose-600 shadow-sm{% else %}bg-white text-slate-700 border-slate-200 hover:bg-slate-50{% endif %}">
+      <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+      <span>Kasallik aniqlangan</span>
+      <span class="px-2 py-0.5 rounded-full text-sm font-bold {% if current_filter == 'diseased' %}bg-rose-700 text-white{% else %}bg-rose-50 text-rose-700{% endif %}">
+        {{ counts.diseased }}
+      </span>
+    </a>
+  </div>
+
+  <!-- Content List: Mobile Cards / Desktop Table -->
+  {% if page_obj %}
+  
+  <!-- Mobile Cards View (sm:hidden) -->
+  <div class="sm:hidden space-y-3" data-reveal data-delay="100">
+    {% for scan in page_obj %}
+    <a href="{% url 'scan_detail' scan.id %}"
+       class="block bg-white p-4 rounded-3xl border border-slate-200 shadow-sm active:bg-slate-50 transition-colors">
+      <div class="flex items-start gap-3.5">
+        
+        <!-- Thumbnail (72px) -->
+        <div class="w-18 h-18 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0">
+          {% if scan.thumbnail %}
+            <img src="{{ scan.thumbnail.url }}" alt="{{ scan.plant_name }}" class="w-full h-full object-cover" width="72" height="72" loading="lazy">
+          {% elif scan.image %}
+            <img src="{{ scan.image.url }}" alt="{{ scan.plant_name }}" class="w-full h-full object-cover" width="72" height="72" loading="lazy">
+          {% else %}
+            <div class="w-full h-full flex items-center justify-center text-slate-400">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Details -->
+        <div class="flex-1 min-w-0 space-y-1">
+          <div class="flex items-center justify-between gap-2">
+            <h2 class="text-base font-bold text-slate-900 truncate">
+              {{ scan.plant_name|default:scan.crop_type|default:"O'simlik" }}
+            </h2>
+            {% include "partials/class_badge.html" with clz=scan.result_class %}
+          </div>
+          
+          <p class="text-sm font-semibold text-slate-600 truncate">
+            {% if scan.disease_name %}{{ scan.disease_name }}{% else %}Sog'lom holat{% endif %}
+          </p>
+
+          <div class="flex items-center justify-between text-sm text-slate-400 pt-1">
+            <span>{{ scan.created_at|date:"d-M, Y · H:i" }}</span>
+            {% if scan.confidence_percent %}
+              <span class="font-bold text-slate-600">{{ scan.confidence_percent }}%</span>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Desktop Table View (hidden sm:block) -->
+  <div class="hidden sm:block bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm" data-reveal data-delay="100">
+    <table class="w-full text-left">
+      <thead>
+        <tr class="border-b border-slate-200 bg-slate-50 text-sm font-bold text-slate-500 uppercase tracking-wider">
+          <th class="py-4 px-6">Rasm</th>
+          <th class="py-4 px-6">Ekin turi</th>
+          <th class="py-4 px-6">Aniqlangan holat</th>
+          <th class="py-4 px-6">Xulosa</th>
+          <th class="py-4 px-6">Ishonchlilik</th>
+          <th class="py-4 px-6">Sana</th>
+          <th class="py-4 px-6 text-right">Amal</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 text-sm">
+        {% for scan in page_obj %}
+        <tr class="hover:bg-slate-50/80 transition-colors">
+          <td class="py-3 px-6">
+            <div class="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+              {% if scan.thumbnail %}
+                <img src="{{ scan.thumbnail.url }}" alt="{{ scan.plant_name }}" class="w-full h-full object-cover" width="56" height="56" loading="lazy">
+              {% elif scan.image %}
+                <img src="{{ scan.image.url }}" alt="{{ scan.plant_name }}" class="w-full h-full object-cover" width="56" height="56" loading="lazy">
+              {% endif %}
+            </div>
+          </td>
+          <td class="py-3 px-6 font-bold text-slate-900">
+            {{ scan.plant_name|default:scan.crop_type|default:"O'simlik" }}
+            {% if scan.field_name %}<span class="block text-sm font-semibold text-slate-400">{{ scan.field_name }}</span>{% endif %}
+          </td>
+          <td class="py-3 px-6 text-slate-700 font-semibold">
+            {{ scan.disease_name|default:"Muammo yo'q" }}
+          </td>
+          <td class="py-3 px-6">
+            {% include "partials/class_badge.html" with clz=scan.result_class %}
+          </td>
+          <td class="py-3 px-6 font-bold text-slate-700">
+            {% if scan.confidence_percent %}{{ scan.confidence_percent }}%{% else %}—{% endif %}
+          </td>
+          <td class="py-3 px-6 text-slate-500 font-medium">
+            {{ scan.created_at|date:"d-M, Y" }}
+          </td>
+          <td class="py-3 px-6 text-right">
+            <a href="{% url 'scan_detail' scan.id %}" class="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm">
+              Ko'rish
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination Controls -->
+  {% if page_obj.has_other_pages %}
+  <div class="flex items-center justify-center gap-3 pt-4">
+    {% if page_obj.has_previous %}
+      <a href="?filter={{ current_filter }}&page={{ page_obj.previous_page_number }}"
+         class="px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 font-bold text-sm hover:bg-slate-50">
+        Oldingi
+      </a>
+    {% endif %}
+
+    <span class="text-sm font-semibold text-slate-500">
+      {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+    </span>
+
+    {% if page_obj.has_next %}
+      <a href="?filter={{ current_filter }}&page={{ page_obj.next_page_number }}"
+         class="px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 font-bold text-sm hover:bg-slate-50">
+        Keyingi
+      </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- EMPTY STATE -->
+  {% else %}
+  <div class="bg-white rounded-3xl border border-slate-200 p-12 text-center max-w-lg mx-auto space-y-4 shadow-sm" data-reveal>
+    <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center">
+      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+      </svg>
+    </div>
+    <h2 class="text-xl font-bold text-slate-900">Ushbu toifada tekshiruvlar topilmadi</h2>
+    <p class="text-base text-slate-500">O'simlik holatini tekshirish uchun yangi rasm yuklang.</p>
+    <div class="pt-2">
+      <a href="{% url 'new_scan' %}"
+         class="inline-flex items-center justify-center px-6 min-h-[50px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base shadow-sm">
+        Yangi tekshiruv boshlash
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

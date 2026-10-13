@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Bosh sahifa | AgroDoktor{% endblock %}
+{% block meta_description %}Fermerning shaxsiy boshqaruv paneli: ekinlar holati va tahlillar statistikasi.{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js (only on chart pages) -->
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Wide full-width comfortable container (no huge side gutters) -->
+<div class="w-full max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-6 sm:py-8 space-y-8">
+
+  <!-- Greeting & Quick Action Header -->
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4" data-reveal>
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+        Salom, {{ user.first_name|default:"Fermer" }}!
+      </h1>
+      <p class="text-base text-slate-500 mt-1">
+        Dala va tomorqa ekinlaringiz salomatligini kuzatib boring
+      </p>
+    </div>
+
+    <a href="{% url 'new_scan' %}"
+       class="inline-flex items-center gap-2.5 px-7 min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base transition-transform active:scale-95 shadow-sm">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+      <span>Yangi tekshiruv</span>
+    </a>
+  </div>
+
+  <!-- 4 Headline KPI Cards (Full span across wide layout) -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6" data-reveal data-delay="50">
+    
+    <!-- 1. Jami tekshiruvlar -->
+    <div class="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+      <p class="text-sm font-bold text-slate-500">Jami tekshiruvlar</p>
+      <p class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight" data-countup="{{ stats.total_scans }}">
+        {{ stats.total_scans }}
+      </p>
+      <p class="text-sm font-semibold text-slate-400">Barcha davr hisobi</p>
+    </div>
+
+    <!-- 2. Oxirgi natija -->
+    <div class="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+      <p class="text-sm font-bold text-slate-500">Oxirgi natija</p>
+      <div class="pt-1">
+        {% if stats.last_scan %}
+          {% include "partials/class_badge.html" with clz=stats.last_scan.result_class %}
+        {% else %}
+          <span class="text-sm font-bold text-slate-400">Hozircha yo'q</span>
+        {% endif %}
+      </div>
+      <p class="text-sm font-semibold text-slate-400 truncate">
+        {% if stats.last_scan %}{{ stats.last_scan.created_at|date:"d-M, Y" }}{% else %}Tekshiruv o'tkazilmagan{% endif %}
+      </p>
+    </div>
+
+    <!-- 3. Shu oydagi tekshiruvlar -->
+    <div class="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+      <p class="text-sm font-bold text-slate-500">Shu oyda</p>
+      <p class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight" data-countup="{{ stats.month_scans }}">
+        {{ stats.month_scans }}
+      </p>
+      <p class="text-sm font-semibold text-slate-400">Joriy oy faolligi</p>
+    </div>
+
+    <!-- 4. Kasallik aniqlanganlar -->
+    <div class="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+      <p class="text-sm font-bold text-slate-500">Kasallik aniqlangan</p>
+      <p class="text-3xl sm:text-4xl font-black text-rose-600 tracking-tight" data-countup="{{ stats.diseased_count }}">
+        {{ stats.diseased_count }}
+      </p>
+      <p class="text-sm font-semibold text-slate-400">Chora ko'rilgan holatlar</p>
+    </div>
+
+  </div>
+
+  <!-- Big Hero CTA Card -->
+  <div class="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm" data-reveal data-delay="100">
+    <div class="space-y-2 max-w-2xl">
+      <h2 class="text-xl sm:text-2xl font-bold tracking-tight">Ekin bargini suratga oling va holatini biling</h2>
+      <p class="text-sm sm:text-base text-slate-300">
+        Sun'iy intellekt bir necha soniyada o'simlik sog'lom yoki kasalligini aniqlab, parvarish va davolash ko'rsatmalarini taqdim etadi.
+      </p>
+    </div>
+    <a href="{% url 'new_scan' %}"
+       class="inline-flex items-center justify-center gap-3 px-8 min-h-[52px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base transition-transform active:scale-95 flex-shrink-0 shadow-sm">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      <span>Tekshiruv boshlash</span>
+    </a>
+  </div>
+
+  <!-- Charts Grid (Expansive 2 columns on lg) -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" data-reveal data-delay="150">
+    
+    <!-- Doughnut: Natijalar toifalari -->
+    <div class="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-slate-900">Natijalar toifalari</h2>
+        <span class="text-sm font-semibold text-slate-400">Jami nisbat</span>
+      </div>
+      <div class="h-[240px] relative flex items-center justify-center">
+        <canvas id="classDoughnutChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Bar: Oylik dinamika -->
+    <div class="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-slate-900">Oxirgi 6 oylik dinamika</h2>
+        <span class="text-sm font-semibold text-slate-400">Tekshiruvlar soni</span>
+      </div>
+      <div class="h-[240px] relative">
+        <canvas id="monthlyTrendChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Grid: Top Diseases & Recent Scans (Wider columns) -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8" data-reveal data-delay="200">
+
+    <!-- Top 5 Diseases (5 cols on lg) -->
+    <div class="lg:col-span-5 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <h2 class="text-lg font-bold text-slate-900">Eng ko'p uchragan kasalliklar</h2>
+      
+      {% if stats.top_diseases %}
+        <div class="divide-y divide-slate-100">
+          {% for item in stats.top_diseases %}
+          <div class="py-3.5 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-base font-bold text-slate-900 truncate">{{ item.name }}</p>
+              <p class="text-sm font-semibold text-slate-500">{{ item.crop }}</p>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-slate-100 text-slate-700">
+              {{ item.count }} ta
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-sm text-slate-400 py-6 text-center">Hozircha kasallik holatlari qayd etilmagan.</p>
+      {% endif %}
+    </div>
+
+    <!-- Recent Scans (7 cols on lg, clickable to scan detail) -->
+    <div class="lg:col-span-7 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-slate-900">Tahlil tarixi</h2>
+        <a href="{% url 'scan_history' %}" class="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 hover:text-emerald-800">
+          <span>Barcha tahlillar</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      {% if stats.recent_scans %}
+        <div class="space-y-3">
+          {% for scan in stats.recent_scans %}
+          <a href="{% url 'scan_detail' scan.id %}"
+             class="flex items-center gap-4 p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors group">
+            
+            <!-- Thumbnail (72px) -->
+            <div class="w-18 h-18 rounded-xl overflow-hidden bg-slate-200 flex-shrink-0 border border-slate-200">
+              {% if scan.thumbnail %}
+                <img src="{{ scan.thumbnail.url }}" alt="{{ scan.plant_name }}" class="w-full h-full object-cover" width="72" height="72" loading="lazy">
+              {% elif scan.image %}
+                <img src="{{ scan.image.url }}" alt="{{ scan.plant_name }}" class="w-full h-full object-cover" width="72" height="72" loading="lazy">
+              {% else %}
+                <div class="w-full h-full flex items-center justify-center text-slate-400">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Meta details -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-base font-bold text-slate-900 truncate group-hover:text-emerald-700 transition-colors">
+                  {{ scan.plant_name|default:scan.crop_type|default:"O'simlik" }}
+                </p>
+                {% include "partials/class_badge.html" with clz=scan.result_class %}
+              </div>
+              <p class="text-sm font-semibold text-slate-600 truncate mt-0.5">
+                {% if scan.disease_name %}{{ scan.disease_name }}{% else %}Muammosiz holat{% endif %}
+              </p>
+              <p class="text-sm text-slate-400 mt-1">{{ scan.created_at|date:"d-M, Y · H:i" }}</p>
+            </div>
+
+          </a>
+          {% endfor %}
+
+          <div class="pt-3 text-center">
+            <a href="{% url 'scan_history' %}" class="inline-flex items-center gap-2 text-sm font-bold text-emerald-700 hover:text-emerald-800">
+              <span>Barcha tahlillar tarixini ko'rish</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </a>
+          </div>
+        </div>
+      {% else %}
+        <div class="py-12 text-center space-y-4">
+          <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900">Hozircha tahlillar mavjud emas</h3>
+          <p class="text-base text-slate-500 max-w-sm mx-auto">O'simlik bargi yoki mevasi suratini yuklab, ilk tekshiruvni o'tkazing.</p>
+          <div class="pt-2">
+            <a href="{% url 'new_scan' %}" class="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base shadow-sm active:scale-95 transition-transform">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+              <span>Ilk tahlilni boshlash</span>
+            </a>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  if (typeof Chart === "undefined") return;
+
+  // 1. Doughnut Chart
+  const doughnutCtx = document.getElementById("classDoughnutChart");
+  if (doughnutCtx) {
+    new Chart(doughnutCtx, {
+      type: "doughnut",
+      data: {
+        labels: ["Sog'lom", "Kuzatuv talab etadi", "Kasallik aniqlandi"],
+        datasets: [{
+          data: [{{ stats.healthy_count }}, {{ stats.suspicious_count }}, {{ stats.diseased_count }}],
+          backgroundColor: ["#059669", "#f59e0b", "#e11d48"],
+          borderWidth: 2,
+          borderColor: "#ffffff",
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { font: { size: 12, family: "Inter" }, boxWidth: 14 }
+          }
+        },
+        cutout: "68%",
+      }
+    });
+  }
+
+  // 2. Monthly Trend Chart
+  const trendCtx = document.getElementById("monthlyTrendChart");
+  if (trendCtx) {
+    const labels = [{% for item in stats.monthly_trend %}"{{ item.label }}",{% endfor %}];
+    const data = [{% for item in stats.monthly_trend %}{{ item.count }},{% endfor %}];
+
+    new Chart(trendCtx, {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Tekshiruvlar",
+          data: data,
+          backgroundColor: "#059669",
+          borderRadius: 8,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0, font: { family: "Inter", size: 11 } },
+            grid: { color: "#f1f5f9" },
+          },
+          x: {
+            grid: { display: false },
+            ticks: { font: { family: "Inter", size: 11 } }
+          }
+        }
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

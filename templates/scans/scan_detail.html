@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Tekshiruv natijasi | AgroDoktor{% endblock %}
+{% block meta_description %}O'simlik holati tahlili natijalari va davolash hamda parvarish tavsiyalari.{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6" x-data="{ deleteModalOpen: false, shareToast: false }">
+
+  <!-- Header Breadcrumb & Actions (Points to Dashboard, NOT history) -->
+  <div class="flex items-center justify-between" data-reveal>
+    <a href="{% url 'dashboard' %}" class="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      <span>Bosh sahifaga qaytish</span>
+    </a>
+
+    <div class="flex items-center gap-2">
+      <!-- Share button -->
+      <button type="button"
+              @click="if (navigator.share) { navigator.share({ title: 'AgroDoktor tahlili', text: 'O\'simlik holati natijasi', url: window.location.href }); } else { navigator.clipboard.writeText(window.location.href); shareToast = true; setTimeout(() => shareToast = false, 2500); }"
+              class="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+              aria-label="Ulashish">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+      </button>
+
+      <!-- Delete button -->
+      <button type="button"
+              @click="deleteModalOpen = true"
+              class="p-2.5 rounded-xl bg-white border border-slate-200 text-rose-600 hover:bg-rose-50 transition-colors"
+              aria-label="O'chirish">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Share Toast -->
+  <div x-show="shareToast" x-cloak class="p-3 bg-slate-900 text-white text-sm font-semibold rounded-xl text-center shadow-lg">
+    Havola nusxalandi!
+  </div>
+
+  <!-- Image Preview (max 40dvh) -->
+  {% if scan.image %}
+  <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm" data-reveal>
+    <div class="relative max-h-[40dvh] flex items-center justify-center bg-slate-950">
+      <img src="{{ scan.image.url }}" alt="{{ scan.plant_name }}" class="max-h-[40dvh] w-auto object-contain">
+    </div>
+    {% if scan.field_name or scan.crop_type %}
+    <div class="p-4 bg-white border-t border-slate-100 flex items-center justify-between text-sm">
+      <span class="font-bold text-slate-800">{{ scan.plant_name|default:scan.crop_type }}</span>
+      <span class="text-slate-500 font-medium">{{ scan.field_name }} · {{ scan.created_at|date:"d-M, Y · H:i" }}</span>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- INVALID / ERROR STATE -->
+  {% if scan.status == 'invalid' or scan.status == 'error' %}
+  <div class="bg-white rounded-3xl border border-amber-200 p-6 sm:p-8 shadow-sm space-y-4" data-reveal>
+    <div class="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+    </div>
+    <h2 class="text-2xl font-bold text-slate-900">Rasm talabga javob bermadi</h2>
+    <p class="text-base text-slate-600 leading-relaxed">
+      {{ scan.invalid_reason|default:"Rasmda o'simlik bargi yoki mevasi aniqlanmadi. Iltimos, o'simlikni yaqinroqdan va yaxshi yorug'likda suratga oling." }}
+    </p>
+    <div class="pt-2">
+      <a href="{% url 'new_scan' %}"
+         class="inline-flex items-center justify-center px-6 min-h-[52px] rounded-2xl bg-emerald-600 text-white font-bold text-base shadow-sm">
+        Qayta rasm olish
+      </a>
+    </div>
+  </div>
+
+  {% else %}
+
+  <!-- SUCCESS RESULT CARD -->
+  <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6" data-reveal>
+    
+    <!-- Class Title & Badge -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+      <div class="space-y-1">
+        <p class="text-sm font-bold text-slate-500 uppercase tracking-wider">Tahlil xulosasi</p>
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          {{ scan.class_label_uz }}
+        </h2>
+        {% if scan.disease_name %}
+          <p class="text-xl font-bold text-rose-600">{{ scan.disease_name }}</p>
+        {% endif %}
+      </div>
+      <div>
+        {% include "partials/class_badge.html" with clz=scan.result_class %}
+      </div>
+    </div>
+
+    <!-- Confidence bar -->
+    {% if scan.confidence_percent %}
+    <div class="space-y-2">
+      <div class="flex justify-between items-center text-sm font-bold">
+        <span class="text-slate-600">AI ishonchlilik darajasi</span>
+        <span class="text-emerald-700">{{ scan.confidence_percent }}%</span>
+      </div>
+      <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+        <div class="h-3 rounded-full transition-all duration-1000
+          {% if scan.result_class == 'healthy' %}bg-emerald-600
+          {% elif scan.result_class == 'suspicious' %}bg-amber-500
+          {% else %}bg-rose-600{% endif %}"
+          style="width: {{ scan.confidence_percent }}%;"></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Severity Note (white card with rose border ONLY) -->
+    {% if scan.result_class == 'diseased' and scan.severity == 'high' %}
+    <div class="p-5 rounded-2xl bg-white border-2 border-rose-300 text-slate-900 space-y-2">
+      <div class="flex items-center gap-2 text-rose-600 font-bold text-base">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <span>Yuqori xavf darajasi</span>
+      </div>
+      <p class="text-sm font-semibold text-slate-700 leading-relaxed">
+        Kasallik alomatlari jiddiy ekanligi kuzatilmoqda. Hosilni asrab qolish uchun kechiktirmasdan agronom ko'rigidan o'tkazish tavsiya etiladi.
+      </p>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- COLLAPSIBLE SECTIONS -->
+  <div class="space-y-4" data-reveal data-delay="100">
+
+    <!-- 1. Qisqacha xulosa -->
+    {% if scan.summary %}
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-3">
+      <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+        <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span>Qisqacha xulosa</span>
+      </h3>
+      <p class="text-base text-slate-700 leading-relaxed">{{ scan.summary }}</p>
+    </div>
+    {% endif %}
+
+    <!-- 2. Kuzatilgan belgilar -->
+    {% if scan.observations %}
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4" x-data="{ open: true }">
+      <button type="button" @click="open = !open" class="w-full flex items-center justify-between text-left">
+        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          <span>Kuzatilgan belgilar</span>
+        </h3>
+        <svg class="w-5 h-5 text-slate-400 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <ul x-show="open" class="space-y-2.5 pt-2 border-t border-slate-100">
+        {% for obs in scan.observations %}
+        <li class="flex items-start gap-3 text-base text-slate-700">
+          <span class="w-2 h-2 rounded-full bg-emerald-600 mt-2 flex-shrink-0"></span>
+          <span>{{ obs }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- 3. Kasallik sababi -->
+    {% if scan.causes %}
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4" x-data="{ open: true }">
+      <button type="button" @click="open = !open" class="w-full flex items-center justify-between text-left">
+        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span>Ehtimoliy sabablar</span>
+        </h3>
+        <svg class="w-5 h-5 text-slate-400 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <ul x-show="open" class="space-y-2.5 pt-2 border-t border-slate-100">
+        {% for cause in scan.causes %}
+        <li class="flex items-start gap-3 text-base text-slate-700">
+          <span class="w-2 h-2 rounded-full bg-slate-400 mt-2 flex-shrink-0"></span>
+          <span>{{ cause }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- 4. Davolash bo'yicha tavsiyalar -->
+    {% if scan.treatment %}
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4" x-data="{ open: true }">
+      <button type="button" @click="open = !open" class="w-full flex items-center justify-between text-left">
+        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span>Davolash bo'yicha tavsiyalar</span>
+        </h3>
+        <svg class="w-5 h-5 text-slate-400 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <ul x-show="open" class="space-y-3 pt-2 border-t border-slate-100">
+        {% for step in scan.treatment %}
+        <li class="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-base font-semibold text-slate-800">
+          <svg class="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="leading-snug">{{ step }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- 5. Oldini olish choralari -->
+    {% if scan.prevention %}
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4" x-data="{ open: true }">
+      <button type="button" @click="open = !open" class="w-full flex items-center justify-between text-left">
+        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          <span>Oldini olish (Profilaktika)</span>
+        </h3>
+        <svg class="w-5 h-5 text-slate-400 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <ul x-show="open" class="space-y-3 pt-2 border-t border-slate-100">
+        {% for prev in scan.prevention %}
+        <li class="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-base font-semibold text-slate-800">
+          <svg class="w-5 h-5 text-sky-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span class="leading-snug">{{ prev }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+  </div>
+
+  {% endif %}
+
+  <!-- Sticky Bottom Actions Bar -->
+  <div class="fixed sm:static bottom-0 inset-x-0 p-4 bg-white sm:bg-transparent border-t sm:border-t-0 border-slate-200 z-30 safe-bottom">
+    <div class="max-w-4xl mx-auto flex items-center gap-3">
+      <a href="{% url 'new_scan' %}"
+         class="flex-1 min-h-[56px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base transition-transform active:scale-95 shadow-sm flex items-center justify-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+        <span>Yangi tekshiruv</span>
+      </a>
+
+      <a href="{% url 'dashboard' %}"
+         class="px-6 min-h-[56px] rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-base transition-colors flex items-center justify-center">
+        Bosh sahifa
+      </a>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Bottom Sheet (mobile) / Modal (sm+) -->
+  <div x-show="deleteModalOpen"
+       x-cloak
+       class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+       style="display: none;">
+    <div class="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl"
+         @click.outside="deleteModalOpen = false">
+      <div class="space-y-2">
+        <h3 class="text-xl font-bold text-slate-900">Tekshiruvni o'chirish</h3>
+        <p class="text-base text-slate-500">
+          Ushbu tekshiruv va biriktirilgan rasm butunlay o'chiriladi. Bu amalni qaytarib bo'lmaydi.
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button type="button"
+                @click="deleteModalOpen = false"
+                class="flex-1 min-h-[50px] rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-base">
+          Bekor qilish
+        </button>
+        <form method="post" action="{% url 'scan_delete' scan.id %}" class="flex-1">
+          {% csrf_token %}
+          <button type="submit"
+                  class="w-full min-h-[50px] rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-base">
+            O'chirish
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

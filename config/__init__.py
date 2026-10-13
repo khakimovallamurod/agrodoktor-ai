@@ -1,0 +1,1 @@
+# AgroDoktor configuration package

@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Statistika | AgroDoktor{% endblock %}
+{% block meta_description %}Barcha tekshiruvlar tahlili, o'simlik kasalliklari tarqalishi va dinamikasi.{% endblock %}
+
+{% block extra_head %}
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-6 sm:py-8 space-y-8">
+
+  <!-- Header -->
+  <div class="space-y-1" data-reveal>
+    <h1 class="text-3xl font-black text-slate-900 tracking-tight">Umumiy statistika</h1>
+    <p class="text-base text-slate-500">Ekin turlari, aniqlangan kasalliklar va vaqt bo'yicha tahliliy ko'rsatkichlar</p>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6" data-reveal data-delay="50">
+    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+      <p class="text-sm font-bold text-slate-500">Jami tekshiruvlar</p>
+      <p class="text-3xl sm:text-4xl font-black text-slate-900" data-countup="{{ stats.total_scans }}">{{ stats.total_scans }}</p>
+      <p class="text-sm font-semibold text-slate-400">100% tahlil qilingan</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+      <p class="text-sm font-bold text-slate-500">O'rtacha ishonchlilik</p>
+      <p class="text-3xl sm:text-4xl font-black text-emerald-700" data-countup="{{ stats.avg_confidence }}">{{ stats.avg_confidence }}%</p>
+      <p class="text-sm font-semibold text-slate-400">AI tahlil ishonchliligi</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+      <p class="text-sm font-bold text-slate-500">Sog'lom ekinlar</p>
+      <p class="text-3xl sm:text-4xl font-black text-emerald-700">{{ stats.healthy_pct }}%</p>
+      <p class="text-sm font-semibold text-slate-400">{{ stats.healthy_count }} ta tekshiruv</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+      <p class="text-sm font-bold text-slate-500">Kasallik aniqlangan</p>
+      <p class="text-3xl sm:text-4xl font-black text-rose-600">{{ stats.diseased_pct }}%</p>
+      <p class="text-sm font-semibold text-slate-400">{{ stats.diseased_count }} ta tekshiruv</p>
+    </div>
+  </div>
+
+  <!-- Big Charts Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8" data-reveal data-delay="100">
+    
+    <!-- Chart 1: Oylik trend -->
+    <div class="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <h2 class="text-xl font-bold text-slate-900">Oylik tahlillar dinamikasi</h2>
+      <div class="h-[280px] relative">
+        <canvas id="statMonthlyChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 2: Toifalar taqsimoti -->
+    <div class="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <h2 class="text-xl font-bold text-slate-900">Holatlar toifalari</h2>
+      <div class="h-[280px] relative flex items-center justify-center">
+        <canvas id="statDoughnutChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Breakdown: Ekinlar bo'yicha & Kasalliklar -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8" data-reveal data-delay="150">
+    
+    <!-- Ekinlar bo'yicha ulush (6 cols) -->
+    <div class="lg:col-span-6 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+      <h2 class="text-xl font-bold text-slate-900">Ekin turlari bo'yicha taqsimot</h2>
+      
+      {% if stats.crop_breakdown %}
+        <div class="space-y-4">
+          {% for crop in stats.crop_breakdown %}
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-sm font-bold text-slate-800">
+              <span>{{ crop.name }}</span>
+              <span>{{ crop.count }} ta ({{ crop.pct }}%)</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+              <div class="bg-emerald-600 h-2.5 rounded-full" style="width: {{ crop.pct }}%;"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-sm text-slate-400 py-6 text-center">Ekin ma'lumotlari yo'q.</p>
+      {% endif %}
+    </div>
+
+    <!-- Top Kasalliklar jadvali (6 cols) -->
+    <div class="lg:col-span-6 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+      <h2 class="text-xl font-bold text-slate-900">Eng ko'p qayd etilgan kasalliklar</h2>
+
+      {% if stats.top_diseases %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-slate-200 text-sm font-bold text-slate-500 uppercase tracking-wider">
+                <th class="pb-3">Kasallik nomi</th>
+                <th class="pb-3">Ekin</th>
+                <th class="pb-3 text-right">Aniqlangan</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-sm">
+              {% for d in stats.top_diseases %}
+              <tr>
+                <td class="py-3.5 font-bold text-slate-900">{{ d.name }}</td>
+                <td class="py-3.5 text-slate-600">{{ d.crop }}</td>
+                <td class="py-3.5 text-right font-extrabold text-rose-600">{{ d.count }} ta</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-sm text-slate-400 py-6 text-center">Kasalliklar qayd etilmagan.</p>
+      {% endif %}
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  if (typeof Chart === "undefined") return;
+
+  // Monthly Bar
+  const mCtx = document.getElementById("statMonthlyChart");
+  if (mCtx) {
+    new Chart(mCtx, {
+      type: "bar",
+      data: {
+        labels: [{% for item in stats.monthly_trend %}"{{ item.label }}",{% endfor %}],
+        datasets: [{
+          label: "Tekshiruvlar",
+          data: [{% for item in stats.monthly_trend %}{{ item.count }},{% endfor %}],
+          backgroundColor: "#059669",
+          borderRadius: 8,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // Doughnut
+  const dCtx = document.getElementById("statDoughnutChart");
+  if (dCtx) {
+    new Chart(dCtx, {
+      type: "doughnut",
+      data: {
+        labels: ["Sog'lom", "Kuzatuv talab etadi", "Kasallik aniqlandi"],
+        datasets: [{
+          data: [{{ stats.healthy_count }}, {{ stats.suspicious_count }}, {{ stats.diseased_count }}],
+          backgroundColor: ["#059669", "#f59e0b", "#e11d48"],
+          borderWidth: 2,
+          borderColor: "#ffffff",
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "65%",
+        plugins: {
+          legend: { position: "bottom", labels: { font: { family: "Inter" } } }
+        }
+      }
+    });
+  }
+});
+</script>
+{% endblock %}
