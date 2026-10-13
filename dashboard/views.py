@@ -13,7 +13,15 @@ class DashboardView(LoginRequiredMixin, View):
     """Main dashboard displaying headline KPIs, quick actions, charts, and recent scans."""
 
     def get(self, request):
-        stats = get_dashboard_stats(request.user)
+        try:
+            stats = get_dashboard_stats(request.user)
+        except Exception:
+            from django.core.management import call_command
+            try:
+                call_command("migrate", interactive=False)
+            except Exception:
+                pass
+            stats = get_dashboard_stats(request.user)
         return render(request, "dashboard/dashboard.html", {"stats": stats})
 
 
@@ -21,5 +29,13 @@ class StatisticsView(LoginRequiredMixin, View):
     """Dedicated analytics page with detailed breakdown and historical trends."""
 
     def get(self, request):
-        stats = get_detailed_statistics(request.user)
+        try:
+            stats = get_detailed_statistics(request.user)
+        except Exception:
+            from django.core.management import call_command
+            try:
+                call_command("migrate", interactive=False)
+            except Exception:
+                pass
+            stats = get_detailed_statistics(request.user)
         return render(request, "dashboard/statistics.html", {"stats": stats})

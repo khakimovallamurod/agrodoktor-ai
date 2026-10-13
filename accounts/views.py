@@ -57,29 +57,50 @@ class LandingView(View):
 
 class DemoLoginView(View):
     """
-    Instantly logs in the demo user on POST.
+    Instantly logs in the demo user on POST or GET.
     No password typing required for testing/demo access.
+    Automatically self-heals by applying database migrations if tables are missing on a fresh server.
     """
+
+    def get(self, request):
+        return self.post(request)
 
     def post(self, request):
         username = getattr(settings, "DEMO_USERNAME", "demo")
         first_name = getattr(settings, "DEMO_FIRST_NAME", "O'rolboy")
         last_name = getattr(settings, "DEMO_LAST_NAME", "Xakimov")
 
-        user, created = User.objects.get_or_create(
-            username=username,
-            defaults={
-                "first_name": first_name,
-                "last_name": last_name,
-                "is_active": True,
-            },
-        )
+        try:
+            user, _ = User.objects.get_or_create(
+                username=username,
+                defaults={
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "is_active": True,
+                },
+            )
+        except Exception:
+            # Self-healing: if database tables (auth_user, django_session) do not exist yet on server
+            from django.core.management import call_command
+            try:
+                call_command("migrate", interactive=False)
+            except Exception:
+                pass
+            user, _ = User.objects.get_or_create(
+                username=username,
+                defaults={
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "is_active": True,
+                },
+            )
+
         if not user.first_name:
             user.first_name = first_name
             user.last_name = last_name
             user.save(update_fields=["first_name", "last_name"])
 
-        login(request, user)
+        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
         messages.success(request, f"Xush kelibsiz, {user.first_name}!")
         return redirect("dashboard")
 
