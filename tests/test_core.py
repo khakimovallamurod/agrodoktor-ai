@@ -10,7 +10,7 @@ from PIL import Image
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from scans.models import Scan
@@ -30,20 +30,40 @@ def _make_dummy_image(name="test.jpg", size=(200, 200), color=(0, 200, 0)):
     return SimpleUploadedFile(name, buf.read(), content_type="image/jpeg")
 
 
+@override_settings(DEMO_USERNAME="demo", DEMO_PASSWORD="test-pass-123")
 class DemoLoginTests(TestCase):
-    """Test demo user automatic login."""
+    """Test demo login with credentials from settings (.env)."""
 
-    def test_demo_login_creates_and_logs_in(self):
-        client = Client()
-        response = client.post(reverse("demo_login"), follow=True)
+    def test_login_page_renders(self):
+        response = Client().get(reverse("demo_login"))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="password"')
+
+    def test_demo_login_with_valid_credentials(self):
+        client = Client()
+        response = client.post(
+            reverse("demo_login"),
+            {"username": "demo", "password": "test-pass-123"},
+            follow=True,
+        )
         self.assertRedirects(response, reverse("dashboard"))
 
-        # Verify demo user was created
         demo_user = User.objects.get(username="demo")
         self.assertEqual(demo_user.first_name, "O'rolboy")
-        self.assertEqual(demo_user.last_name, "Xakimov")
-        self.assertTrue(demo_user.is_authenticated)
+        self.assertTrue(demo_user.check_password("test-pass-123"))
+
+    def test_demo_login_rejects_wrong_password(self):
+        client = Client()
+        response = client.post(
+            reverse("demo_login"), {"username": "demo", "password": "wrong"}
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn("_auth_user_id", client.session)
+
+    @override_settings(DEMO_PASSWORD="")
+    def test_demo_login_disabled_without_password(self):
+        response = Client().post(reverse("demo_login"), {"username": "demo", "password": ""})
+        self.assertEqual(response.status_code, 401)
 
 
 class UserIsolationTests(TestCase):
@@ -186,3 +206,24 @@ class AIServiceMockedTests(TestCase):
         self.assertFalse(result["valid"])
         self.assertTrue(result.get("error"))
         self.assertIn("xatolik", result.get("error_message", ""))
+
+    @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="main-model", GEMINI_FALLBACK_MODELS=["backup-model"])
+    @patch("scans.services.gemini.time.sleep")
+    @patch("scans.services.gemini.genai")
+    def test_ai_service_switches_to_fallback_when_overloaded(self, mock_genai, mock_sleep):
+        ok_response = MagicMock()
+        ok_response.text = json.dumps({"valid": True, "class": "healthy", "plant_name": "Olma", "confidence": 0.9})
+
+        mock_client = MagicMock()
+        mock_client.models.generate_content.side_effect = [
+            RuntimeError("503 UNAVAILABLE. high demand"),
+            ok_response,
+        ]
+        mock_genai.Client.return_value = mock_client
+
+        result = analyze_plant_image(b"fake_image_bytes")
+        self.assertTrue(result["valid"])
+        self.assertEqual(result["model"], "backup-model")
+        used = [c.kwargs["model"] for c in mock_client.models.generate_content.call_args_list]
+        self.assertEqual(used, ["main-model", "backup-model"])
+        mock_sleep.assert_not_called()

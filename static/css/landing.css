@@ -1,0 +1,131 @@
+/* AgroDoktor landing: hero slider motion + 3D leaf scanner plate. */
+
+/* Hero slider: slow Ken Burns drift on the active slide */
+.hero-kenburns {
+  animation: heroKenburns 7s ease-out both;
+  transform-origin: 60% 40%;
+}
+@keyframes heroKenburns {
+  from { transform: scale(1.12) translate3d(-1.5%, 1%, 0); }
+  to   { transform: scale(1) translate3d(0, 0, 0); }
+}
+
+/* Slider dot fills up while the slide is shown (matches the 6s autoplay) */
+.hero-dot-fill {
+  animation: heroDotFill 6s linear both;
+}
+@keyframes heroDotFill {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+/* 3D scanner plate */
+.ad-plate {
+  position: relative;
+  margin: 0;
+  width: 100%;
+  max-width: 600px;
+  justify-self: center;
+  aspect-ratio: 1 / 1;
+  border-radius: 28px;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 50%, #ffffff, transparent 75%),
+    #f1f5f2;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 30px 60px -30px rgba(6, 78, 59, 0.35);
+  overflow: hidden;
+}
+.ad-plate__corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 0 solid #047857;
+  opacity: 0.5;
+}
+.ad-plate__corner--tl { top: 18px; left: 18px; border-top-width: 2px; border-left-width: 2px; }
+.ad-plate__corner--tr { top: 18px; right: 18px; border-top-width: 2px; border-right-width: 2px; }
+.ad-plate__corner--bl { bottom: 18px; left: 18px; border-bottom-width: 2px; border-left-width: 2px; }
+.ad-plate__corner--br { bottom: 18px; right: 18px; border-bottom-width: 2px; border-right-width: 2px; }
+.ad-plate__canvas { position: absolute; inset: 0; }
+.ad-plate__canvas canvas { width: 100% !important; height: 100% !important; display: block; }
+.ad-plate__labels { position: absolute; inset: 0; pointer-events: none; }
+.ad-plate.is-static .ad-plate__canvas {
+  background: url("../slider/slide_2_pomidor_bargi.png") center / cover;
+}
+
+.leaf-tag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: -14px 0 0 6px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: #fff;
+  color: #be123c;
+  border: 1.5px solid #e11d48;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  will-change: transform;
+}
+.leaf-tag.is-on { opacity: 1; }
+.ad-plate.is-resetting .leaf-tag { opacity: 0; }
+
+.ad-readout {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: rgba(2, 44, 34, 0.94);
+  color: #fff;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 16px;
+  align-items: center;
+  font-size: 14px;
+}
+.ad-readout__title { font-weight: 700; font-size: 15px; }
+.ad-readout__meta { color: #a7c4b5; }
+.ad-readout__badge {
+  grid-row: span 2;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.12);
+}
+.ad-readout__track {
+  grid-column: 1 / -1;
+  height: 3px;
+  margin-top: 10px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+.ad-readout__track span {
+  display: block;
+  height: 100%;
+  background: #6ee7b7;
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.ad-readout [data-when] { display: none; }
+.ad-readout[data-state="scanning"] [data-when="scanning"],
+.ad-readout[data-state="done"] [data-when="done"] { display: inline; }
+.ad-readout[data-state="done"] .ad-readout__badge { background: #e11d48; }
+
+@media (max-width: 480px) {
+  .ad-readout { font-size: 13px; padding: 12px 14px; left: 12px; right: 12px; bottom: 12px; }
+  .ad-readout__title { font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-kenburns, .hero-dot-fill { animation: none; }
+  .hero-dot-fill { width: 100%; }
+  .leaf-tag { transition: none; }
+}

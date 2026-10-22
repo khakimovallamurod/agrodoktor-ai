@@ -2,7 +2,9 @@
 Views for accounts app: landing, demo login, logout, profile.
 """
 
+import hmac
 import os
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
@@ -51,54 +53,69 @@ class LandingView(View):
     def get(self, request):
         if request.user.is_authenticated:
             return redirect("dashboard")
-        slider_images = get_slider_images()
-        return render(request, "accounts/landing.html", {"slider_images": slider_images})
+        return render(request, "accounts/landing.html", {"slider_images": get_slider_images()})
+
+
+def _get_or_create_demo_user(username, first_name, last_name):
+    """Fetch the demo user, applying migrations first if tables are missing on a fresh server."""
+    defaults = {"first_name": first_name, "last_name": last_name, "is_active": True}
+    try:
+        return User.objects.get_or_create(username=username, defaults=defaults)[0]
+    except Exception:
+        from django.core.management import call_command
+        try:
+            call_command("migrate", interactive=False)
+        except Exception:
+            pass
+        return User.objects.get_or_create(username=username, defaults=defaults)[0]
 
 
 class DemoLoginView(View):
     """
-    Instantly logs in the demo user on POST or GET.
-    No password typing required for testing/demo access.
-    Automatically self-heals by applying database migrations if tables are missing on a fresh server.
+    Demo login form. Credentials are checked against DEMO_USERNAME / DEMO_PASSWORD from .env.
     """
 
+    template_name = "accounts/login.html"
+
     def get(self, request):
-        return self.post(request)
+        if request.user.is_authenticated:
+            return redirect("dashboard")
+        return render(request, self.template_name)
 
     def post(self, request):
-        username = getattr(settings, "DEMO_USERNAME", "demo")
-        first_name = getattr(settings, "DEMO_FIRST_NAME", "O'rolboy")
-        last_name = getattr(settings, "DEMO_LAST_NAME", "Xakimov")
+        username = request.POST.get("username", "").strip()
+        password = request.POST.get("password", "")
 
-        try:
-            user, _ = User.objects.get_or_create(
-                username=username,
-                defaults={
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "is_active": True,
-                },
-            )
-        except Exception:
-            # Self-healing: if database tables (auth_user, django_session) do not exist yet on server
-            from django.core.management import call_command
-            try:
-                call_command("migrate", interactive=False)
-            except Exception:
-                pass
-            user, _ = User.objects.get_or_create(
-                username=username,
-                defaults={
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "is_active": True,
-                },
+        expected_username = settings.DEMO_USERNAME
+        expected_password = settings.DEMO_PASSWORD
+
+        valid = bool(expected_password) and (
+            hmac.compare_digest(username.encode(), expected_username.encode())
+            & hmac.compare_digest(password.encode(), expected_password.encode())
+        )
+        if not valid:
+            if not expected_password:
+                error = "Demo kirish sozlanmagan: .env faylida DEMO_PASSWORD ko'rsatilmagan."
+            else:
+                error = "Login yoki parol noto'g'ri. Qaytadan kiriting."
+            return render(
+                request, self.template_name, {"error": error, "username": username}, status=401
             )
 
+        first_name = settings.DEMO_FIRST_NAME
+        last_name = settings.DEMO_LAST_NAME
+        user = _get_or_create_demo_user(expected_username, first_name, last_name)
+
+        update_fields = []
         if not user.first_name:
             user.first_name = first_name
             user.last_name = last_name
-            user.save(update_fields=["first_name", "last_name"])
+            update_fields += ["first_name", "last_name"]
+        if not user.check_password(expected_password):
+            user.set_password(expected_password)
+            update_fields.append("password")
+        if update_fields:
+            user.save(update_fields=update_fields)
 
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
         messages.success(request, f"Xush kelibsiz, {user.first_name}!")

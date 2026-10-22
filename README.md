@@ -48,9 +48,10 @@ cp .env.example .env
 python manage.py migrate
 ```
 
-### 5. Demo ma'lumotlarni to'ldirish
+### 5. Demo foydalanuvchini yaratish
 
-Tizimni tayyor namunalar va 6 oylik tarix bilan to'ldirish uchun buyruqni bajaring:
+Demoga kirish login va paroli `.env` faylidagi `DEMO_USERNAME` va `DEMO_PASSWORD` qiymatlaridan olinadi.
+Demo foydalanuvchini yaratish yoki parolini yangilash uchun:
 
 ```bash
 python manage.py seed_demo
@@ -84,7 +85,7 @@ Brauzerda oching: `http://127.0.0.1:8000/`
    ```
    http://192.168.1.105:8000/
    ```
-5. "Demo bilan kirish" tugmasini bosing va "Kamera orqali olish" yoki "Galereyadan yuklash" vositasidan foydalaning.
+5. "Demo bilan kirish" tugmasini bosing, `.env`dagi login va parolni kiriting va "Kamera orqali olish" yoki "Galereyadan yuklash" vositasidan foydalaning.
 
 ### Variant B: Jonli kamera uchun xavfsiz HTTPS ulanishi
 

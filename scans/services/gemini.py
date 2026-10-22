@@ -27,6 +27,29 @@ def _build_crop_hint_info(crop_hint: str = None) -> str:
     return ""
 
 
+def _thinking_config(model_name: str):
+    """
+    Keep model "thinking" short: it dominates latency (~22s default vs ~10s low on Gemini 3 Flash).
+    Gemini 3 models take a thinking level, Gemini 2.5 models a token budget.
+    """
+    level = getattr(settings, "GEMINI_THINKING_LEVEL", "low").upper()
+    if model_name.startswith("gemini-2.5"):
+        budgets = {"LOW": 512, "MEDIUM": 2048, "HIGH": -1}
+        return genai_types.ThinkingConfig(thinking_budget=budgets.get(level, 512))
+    return genai_types.ThinkingConfig(thinking_level=level)
+
+
+def _is_overloaded(exc: Exception) -> bool:
+    """True for transient capacity errors (503 / 429) where switching model beats waiting."""
+    text = str(exc)
+    return any(code in text for code in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED"))
+
+
+def _is_timeout(exc: Exception) -> bool:
+    text = f"{type(exc).__name__} {exc}".lower()
+    return any(k in text for k in ("timeout", "timed out", "deadline", "504"))
+
+
 def _parse_response(text: str) -> dict:
     """Parse JSON response text, safely stripping markdown fences."""
     text = text.strip()
@@ -66,7 +89,7 @@ def analyze_plant_image(
     On error returns dict with: {"valid": False, "error": True, "error_message": str}
     """
     api_key = getattr(settings, "GEMINI_API_KEY", "")
-    model_name = getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash")
+    model_name = getattr(settings, "GEMINI_MODEL", "gemini-3.8-flash")
 
     if not api_key:
         logger.error("GEMINI_API_KEY sozlanmagan.")
@@ -87,15 +110,21 @@ def analyze_plant_image(
     crop_hint_info = _build_crop_hint_info(crop_hint)
     prompt_text = ANALYSIS_PROMPT_TEMPLATE.format(crop_hint_info=crop_hint_info)
 
-    client = genai.Client(api_key=api_key)
+    timeout_ms = int(getattr(settings, "GEMINI_TIMEOUT_SECONDS", 30) * 1000)
+    client = genai.Client(api_key=api_key, http_options=genai_types.HttpOptions(timeout=timeout_ms))
 
-    max_attempts = 3
+    # Main model first, then fallbacks used immediately when a model is overloaded
+    models = [model_name] + [
+        m for m in getattr(settings, "GEMINI_FALLBACK_MODELS", []) if m and m != model_name
+    ]
+    current_model = models[0]
+    max_attempts = len(models) + 1
     last_error = None
 
     for attempt in range(1, max_attempts + 1):
         try:
             response = client.models.generate_content(
-                model=model_name,
+                model=current_model,
                 contents=[
                     genai_types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
                     genai_types.Part.from_text(text=prompt_text),
@@ -104,6 +133,7 @@ def analyze_plant_image(
                     system_instruction=SYSTEM_PROMPT,
                     temperature=0.2,
                     response_mime_type="application/json",
+                    thinking_config=_thinking_config(current_model),
                 ),
             )
 
@@ -125,6 +155,11 @@ def analyze_plant_image(
                     if not isinstance(result.get(list_field), list):
                         result[list_field] = []
 
+                # Fit model CharField limits (disease name now carries the Latin pathogen name)
+                for text_field in ("plant_name", "disease_name"):
+                    if isinstance(result.get(text_field), str):
+                        result[text_field] = result[text_field].strip()[:120]
+
                 if "confidence" in result and result["confidence"] is not None:
                     try:
                         result["confidence"] = float(result["confidence"])
@@ -133,8 +168,10 @@ def analyze_plant_image(
                 else:
                     result["confidence"] = 0.85
 
+            result["model"] = current_model
             logger.info(
-                "AI tahlil yakunlandi: valid=%s, class=%s, plant=%s",
+                "AI tahlil yakunlandi (%s): valid=%s, class=%s, plant=%s",
+                current_model,
                 result.get("valid"),
                 result.get("class"),
                 result.get("plant_name"),
@@ -145,13 +182,19 @@ def analyze_plant_image(
             last_error = exc
             logger.warning("AI JSON tahlil xatosi (urinish %d): %s", attempt, exc)
             if attempt < max_attempts:
-                time.sleep(1.2 * attempt)
+                time.sleep(0.5)
 
         except Exception as exc:  # noqa: BLE001
             last_error = exc
-            logger.warning("AI API chaqiruv xatosi (urinish %d): %s", attempt, exc)
-            if attempt < max_attempts:
-                time.sleep(1.5 * attempt)
+            logger.warning("AI API chaqiruv xatosi (%s, urinish %d): %s", current_model, attempt, exc)
+            if attempt >= max_attempts:
+                break
+            # Model band yoki javob kechikdi: kutmasdan keyingi zaxira modelga o'tamiz
+            next_index = models.index(current_model) + 1
+            if (_is_overloaded(exc) or _is_timeout(exc)) and next_index < len(models):
+                current_model = models[next_index]
+                continue
+            time.sleep(0.8)
 
     logger.error("AI tahlil muvaffaqiyatsiz bo'ldi: %s", last_error)
     return {
