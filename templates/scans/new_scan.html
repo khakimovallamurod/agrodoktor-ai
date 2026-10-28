@@ -703,13 +703,19 @@ function scanUploader() {
         } else {
           this.submitting = false;
           this.stopLoadingRotation();
-          this.validationError = "Internet aloqasi yo'q. Qayta urinib ko'ring.";
+          this.validationError = (response.status === 502 || response.status === 504)
+            ? "Tahlil juda uzoq davom etdi. Bir ozdan so'ng qayta urinib ko'ring."
+            : (response.status === 413)
+              ? "Rasm hajmi juda katta. Kichikroq rasm tanlang."
+              : "Serverda xatolik yuz berdi. Qayta urinib ko'ring.";
         }
       } catch (err) {
         console.error(err);
         this.submitting = false;
         this.stopLoadingRotation();
-        this.validationError = "Internet aloqasi yo'q. Qayta urinib ko'ring.";
+        this.validationError = navigator.onLine
+          ? "Server bilan aloqa uzildi. Qayta urinib ko'ring."
+          : "Internet aloqasi yo'q. Qayta urinib ko'ring.";
       }
     },
   };

@@ -133,15 +133,17 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 
 # AI Service Settings (Backend only)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 # Tried in order, immediately, when the main model is overloaded (503/429) or times out
 GEMINI_FALLBACK_MODELS = [
     m.strip()
-    for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.7-flash,gemini-3.5-flash").split(",")
+    for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.5-flash,gemini-3.7-flash").split(",")
     if m.strip()
 ]
 # Per-request limit so one slow call cannot hang the upload for minutes
 GEMINI_TIMEOUT_SECONDS = int(os.getenv("GEMINI_TIMEOUT_SECONDS", "30"))
+# Budget for the whole analysis incl. fallbacks; keep below gunicorn/nginx timeouts
+GEMINI_TOTAL_TIMEOUT_SECONDS = int(os.getenv("GEMINI_TOTAL_TIMEOUT_SECONDS", "55"))
 # low | medium | high – lower is faster; "low" keeps diagnosis quality at ~2x speed
 GEMINI_THINKING_LEVEL = os.getenv("GEMINI_THINKING_LEVEL", "low")
 

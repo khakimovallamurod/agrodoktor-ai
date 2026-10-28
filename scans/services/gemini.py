@@ -89,7 +89,7 @@ def analyze_plant_image(
     On error returns dict with: {"valid": False, "error": True, "error_message": str}
     """
     api_key = getattr(settings, "GEMINI_API_KEY", "")
-    model_name = getattr(settings, "GEMINI_MODEL", "gemini-3.8-flash")
+    model_name = getattr(settings, "GEMINI_MODEL", "gemini-3.6-flash")
 
     if not api_key:
         logger.error("GEMINI_API_KEY sozlanmagan.")
@@ -110,18 +110,26 @@ def analyze_plant_image(
     crop_hint_info = _build_crop_hint_info(crop_hint)
     prompt_text = ANALYSIS_PROMPT_TEMPLATE.format(crop_hint_info=crop_hint_info)
 
-    timeout_ms = int(getattr(settings, "GEMINI_TIMEOUT_SECONDS", 30) * 1000)
-    client = genai.Client(api_key=api_key, http_options=genai_types.HttpOptions(timeout=timeout_ms))
+    per_call_timeout = float(getattr(settings, "GEMINI_TIMEOUT_SECONDS", 30))
+    # Whole analysis must finish before the web server / proxy drops the request
+    deadline = time.monotonic() + float(getattr(settings, "GEMINI_TOTAL_TIMEOUT_SECONDS", 55))
+    client = genai.Client(api_key=api_key)
 
-    # Main model first, then fallbacks used immediately when a model is overloaded
+    # Main model first, then fallbacks used immediately when a model is overloaded.
+    # After a full cycle of overloaded models we back off briefly and cycle again.
     models = [model_name] + [
         m for m in getattr(settings, "GEMINI_FALLBACK_MODELS", []) if m and m != model_name
     ]
-    current_model = models[0]
-    max_attempts = len(models) + 1
+    max_attempts = 3 * len(models)
+    model_index = 0
     last_error = None
 
     for attempt in range(1, max_attempts + 1):
+        remaining = deadline - time.monotonic()
+        if remaining < 3:
+            break
+        current_model = models[model_index]
+        timeout_ms = int(min(per_call_timeout, remaining) * 1000)
         try:
             response = client.models.generate_content(
                 model=current_model,
@@ -130,6 +138,7 @@ def analyze_plant_image(
                     genai_types.Part.from_text(text=prompt_text),
                 ],
                 config=genai_types.GenerateContentConfig(
+                    http_options=genai_types.HttpOptions(timeout=timeout_ms),
                     system_instruction=SYSTEM_PROMPT,
                     temperature=0.2,
                     response_mime_type="application/json",
@@ -187,21 +196,24 @@ def analyze_plant_image(
         except Exception as exc:  # noqa: BLE001
             last_error = exc
             logger.warning("AI API chaqiruv xatosi (%s, urinish %d): %s", current_model, attempt, exc)
-            if attempt >= max_attempts:
+            if not (_is_overloaded(exc) or _is_timeout(exc)) and attempt >= 2:
+                # Not a capacity problem (bad key, bad request...): retrying will not help
                 break
             # Model band yoki javob kechikdi: kutmasdan keyingi zaxira modelga o'tamiz
-            next_index = models.index(current_model) + 1
-            if (_is_overloaded(exc) or _is_timeout(exc)) and next_index < len(models):
-                current_model = models[next_index]
-                continue
-            time.sleep(0.8)
+            model_index = (model_index + 1) % len(models)
+            if model_index == 0:
+                # Barcha modellar band: qisqa kutib, asosiy modeldan qayta boshlaymiz
+                time.sleep(min(2.0, max(0.0, deadline - time.monotonic() - 3)))
 
     logger.error("AI tahlil muvaffaqiyatsiz bo'ldi: %s", last_error)
-    return {
-        "valid": False,
-        "error": True,
-        "error_message": (
+    if last_error is not None and (_is_overloaded(last_error) or _is_timeout(last_error)):
+        message = (
+            "Sun'iy intellekt xizmati hozir juda band. "
+            "Bir necha daqiqadan so'ng qayta urinib ko'ring."
+        )
+    else:
+        message = (
             "Sun'iy intellekt tahlili jarayonida xatolik yuz berdi. "
-            "Internet aloqasini tekshiring va qayta urinib ko'ring."
-        ),
-    }
+            "Qayta urinib ko'ring."
+        )
+    return {"valid": False, "error": True, "error_message": message}
